@@ -169,7 +169,12 @@ void print_byte_matrix(uint8_t byte_matrix[4][4])
 void aes_add_round_key(uint8_t byte_matrix[4][4], const uint8_t key_matrix[4][4])
 {
   // Add your implementation of AddRoundKey here.
-
+  int r, c;
+  for (r = 0; r < 4; r++) {
+    for (c = 0; c < 4; c++) {
+      byte_matrix[r][c] ^= key_matrix[r][c];
+    }
+  }
 }
 
 
@@ -178,7 +183,17 @@ void aes_add_round_key(uint8_t byte_matrix[4][4], const uint8_t key_matrix[4][4]
 void aes_sub_bytes(uint8_t byte_matrix[4][4])
 {
   // Add your implementation of SubBytes here.
-
+  int r, c;
+  int sr, sc; // row and column in sbox, respectively
+  for (r = 0; r < 4; r++) {
+    for (c = 0; c < 4; c++) {
+      // Get the first 4 bits as a number (e.g. 'a' in '0xa7')
+      sr = (byte_matrix[r][c] >> 4) & 0x0f;
+      // Get the last 4 bits as a number (e.g. '7' in '0xa7')
+      sc = byte_matrix[r][c] & 0x0f;
+      byte_matrix[r][c] = sbox_table[(sr * 16) + sc];
+    }
+  }
 }
 
 
@@ -187,7 +202,19 @@ void aes_sub_bytes(uint8_t byte_matrix[4][4])
 void aes_shift_rows(uint8_t byte_matrix[4][4])
 {
   // Add your implementation of ShiftRows here.
-
+  int r, c;
+  uint8_t tmp_row[4];
+  // r starts from 1 because the first row is unchanged
+  for (r = 1; r < 4; r++) {
+    // rotate the row r by r and store into tmp_row
+    for (c = 0; c < 4; c++) {
+      tmp_row[c] = byte_matrix[r][(r + c) % 4];
+    }
+    // copy tmp_roe into corresponding byte_matrix row
+    for (c = 0; c < 4; c++) {
+      byte_matrix[r][c] = tmp_row[c];
+    }
+  }
 }
 
 
@@ -197,7 +224,32 @@ void aes_mix_columns(uint8_t byte_matrix[4][4])
 {
   // Add your implementation of MixColumns here.
   // Please use the gf256_mul() function!
+  uint8_t fixed_matrix[4][4] = {
+    {2, 3, 1, 1},
+    {1, 2, 3, 1},
+    {1, 1, 2, 3},
+    {3, 1, 1, 2}
+  };
 
+  int r, c;
+  uint8_t tmp_column[4];
+  for (c = 0; c < 4; c++) {
+    // store the column in a buffer
+    for (r = 0; r < 4; r++) {
+      tmp_column[r] = byte_matrix[r][c];
+    }
+    // multiply the fixed matrix by the vector 
+    // and write back into the byte_matrix
+    // "gf256_mul" is used for multiplication and "XOR (^)" is used for addition
+    for (r = 0; r < 4; r++) {
+      // calculate the dot product of the vectors "fixed_matrix[r]" and "tmp_column"
+      // and store in "byte_array[r][c]"
+      byte_matrix[r][c] = gf256_mul(fixed_matrix[r][0], tmp_column[0])
+                          ^ gf256_mul(fixed_matrix[r][1], tmp_column[1])
+                          ^ gf256_mul(fixed_matrix[r][2], tmp_column[2])
+                          ^ gf256_mul(fixed_matrix[r][3], tmp_column[3]);
+    }
+  }
 }
 
 
@@ -278,7 +330,7 @@ void aes_round_trans(void)
 
 int main(void)
 {
-  // gf256_mul_test();
+  gf256_mul_test();
   aes_round_trans();
 
   return 0;
